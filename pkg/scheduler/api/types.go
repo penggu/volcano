@@ -314,3 +314,6 @@ type VictimTasksFn func([]*TaskInfo) []*TaskInfo
 
 // AllocatableFn is the func declaration used to check whether the task can be allocated
 type AllocatableFn func(*QueueInfo, *TaskInfo) bool
+
+// HyperNodeOrderFn is the func declaration used to score hyperNodes for job.
+type HyperNodeOrderFn func(*JobInfo, map[string][]*NodeInfo) (map[string]float64, error)

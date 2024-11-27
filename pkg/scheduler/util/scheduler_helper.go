@@ -23,6 +23,7 @@ import (
 	"math/rand"
 	"sort"
 	"sync"
+	"volcano.sh/volcano/pkg/scheduler/framework"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -217,4 +218,32 @@ func ConvertRes2ResList(res *api.Resource) v1.ResourceList {
 		rl[resourceName] = *resource.NewMilliQuantity(int64(f), resource.DecimalSI)
 	}
 	return rl
+}
+
+// PrioritizeHyperNodes prioritize hyperNodes score of all plugins for job and return hyperNode name with the highest score.
+func PrioritizeHyperNodes(candidateHyperNodes map[string][]*api.NodeInfo, job *api.JobInfo, ssn *framework.Session) (string, error) {
+	hyperNodesScores := make(map[string]float64)
+	hyperNodesScoreMap, err := ssn.HyperNodeOrderFn(job, candidateHyperNodes)
+	if err != nil {
+		return "", err
+	}
+
+	for pluginName, scores := range hyperNodesScoreMap {
+		for hyperNode, score := range scores {
+			klog.V(5).InfoS("Add plugin score at hypeNode", "jobName", job.UID, "pluginName", pluginName, "hyperNodeName", hyperNode, "score", score)
+			hyperNodesScores[hyperNode] += score
+		}
+	}
+
+	klog.V(5).InfoS("Prioritize hyperNode for job", "jobName", job.UID, "scores", hyperNodesScoreMap)
+	maxScore := 0.0
+	bestHyperNode := ""
+	for hyperNode, score := range hyperNodesScores {
+		if score > maxScore {
+			maxScore = score
+			bestHyperNode = hyperNode
+		}
+	}
+
+	return bestHyperNode, nil
 }
